@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/agentpark/agentpark/pkg/keys"
 	"github.com/agentpark/agentpark/pkg/model"
 )
 
@@ -155,7 +156,7 @@ func (h *Hub) UpsertByExternalID(workspaceID string, a model.Agent) model.Agent 
 		ws.agents[id] = a
 		return a
 	}
-	a.ID = newID()
+	a.ID = newAgentID()
 	now := time.Now().UTC()
 	a.Version = 1
 	a.UpdatedAt = now
@@ -167,7 +168,9 @@ func (h *Hub) UpsertByExternalID(workspaceID string, a model.Agent) model.Agent 
 
 func (h *Hub) createLocked(ws *workspaceState, workspaceID string, a model.Agent) model.Agent {
 	if a.ID == "" {
-		a.ID = newID()
+		a.ID = newAgentID()
+	} else if !keys.IsAgentID(a.ID) {
+		a.ID = keys.AgentIDPrefix + a.ID
 	}
 	now := time.Now().UTC()
 	a.Version = 1
@@ -262,7 +265,9 @@ func (h *Hub) Restore(workspaceID string, b model.WorkspaceBackup) {
 	ws.sharesByToken = make(map[string]model.Share)
 	for _, a := range b.Agents {
 		if a.ID == "" {
-			a.ID = newID()
+			a.ID = newAgentID()
+		} else if !keys.IsAgentID(a.ID) {
+			a.ID = keys.AgentIDPrefix + a.ID
 		}
 		a.WorkspaceID = workspaceID
 		if a.Origin == "" {
@@ -340,6 +345,25 @@ func (h *Hub) AgentByShareToken(token string) (model.Agent, model.Share, error) 
 	return model.Agent{}, model.Share{}, ErrNotFound
 }
 
+// RegisterNewUser 生成随机 API Key 与独立 workspace（无密码账户模型）。
+func (h *Hub) RegisterNewUser() (apiKey, workspaceID string) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	if h.keys == nil {
+		h.keys = make(map[string]string)
+	}
+	workspaceID = newUserWorkspaceID()
+	for {
+		apiKey = newUserAPIKey()
+		if _, dup := h.keys[apiKey]; !dup {
+			break
+		}
+	}
+	h.keys[apiKey] = workspaceID
+	h.ensureWorkspaceLocked(workspaceID)
+	return apiKey, workspaceID
+}
+
 // ForkFromShare 将他人分享的只读快照复制到当前 workspace（生成新 id，清除 external_id）。
 func (h *Hub) ForkFromShare(workspaceID, shareToken, newName string) (model.Agent, error) {
 	ag, _, err := h.AgentByShareToken(shareToken)
@@ -355,10 +379,25 @@ func (h *Hub) ForkFromShare(workspaceID, shareToken, newName string) (model.Agen
 	return h.CreateAgent(workspaceID, ag), nil
 }
 
-func newID() string {
-	b := make([]byte, 16)
+func randHex(n int) string {
+	b := make([]byte, n)
 	_, _ = rand.Read(b)
 	return hex.EncodeToString(b)
+}
+
+// newAgentID 生成 Agent 主键，固定前缀 agent-（与 keys.AgentIDPrefix 一致）。
+func newAgentID() string {
+	return keys.AgentIDPrefix + randHex(16)
+}
+
+// newUserAPIKey 生成用户 API Key，固定前缀 user-。
+func newUserAPIKey() string {
+	return keys.UserKeyPrefix + randHex(16)
+}
+
+// newUserWorkspaceID 注册用户独立空间 ID（与 user- 家族一致，避免与 api_key 字符串混淆用 user-ws-）。
+func newUserWorkspaceID() string {
+	return keys.UserKeyPrefix + "ws-" + randHex(8)
 }
 
 func newToken() string {

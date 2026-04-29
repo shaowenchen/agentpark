@@ -2,14 +2,19 @@ package auth
 
 import (
 	"net/http"
+	"os"
 	"strings"
 
 	"github.com/agentpark/agentpark/pkg/store"
 )
 
-// Middleware 在未配置任何 API Key 时，所有请求使用 workspace `default`；
-// 配置后，除 /api/v1/public/ 外须在 Header 中携带 Bearer 或 X-API-Key。
-func Middleware(hub *store.Hub) func(http.Handler) http.Handler {
+// Middleware envStrict 为 true（设置了 AGENTPARK_API_KEY）时，未携带合法 Key 的请求返回 401；
+// 否则未携带 Key 时使用 workspace default（本地开发 / 匿名体验）。
+// 以下路径免鉴权：公开目录、分享、注册。
+func Middleware(hub *store.Hub, envStrict bool) func(http.Handler) http.Handler {
+	if !envStrict {
+		envStrict = strings.TrimSpace(os.Getenv("AGENTPARK_REQUIRE_KEY")) == "1"
+	}
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			path := r.URL.Path
@@ -17,27 +22,35 @@ func Middleware(hub *store.Hub) func(http.Handler) http.Handler {
 				next.ServeHTTP(w, r)
 				return
 			}
-			if strings.HasPrefix(path, "/api/v1/public/") {
+			if isPublicAPI(r.Method, path) {
 				next.ServeHTTP(w, r)
 				return
 			}
-			if !hub.AuthEnabled() {
-				next.ServeHTTP(w, authWith(r, "default"))
-				return
-			}
 			key := extractAPIKey(r)
-			if key == "" {
-				http.Error(w, "missing API key", http.StatusUnauthorized)
+			if ws, ok := hub.WorkspaceForKey(key); ok {
+				next.ServeHTTP(w, authWith(r, ws))
 				return
 			}
-			ws, ok := hub.WorkspaceForKey(key)
-			if !ok {
-				http.Error(w, "invalid API key", http.StatusForbidden)
+			if envStrict {
+				http.Error(w, "missing or invalid API key", http.StatusUnauthorized)
 				return
 			}
-			next.ServeHTTP(w, authWith(r, ws))
+			next.ServeHTTP(w, authWith(r, "default"))
 		})
 	}
+}
+
+func isPublicAPI(method, path string) bool {
+	if strings.HasPrefix(path, "/api/v1/public/") {
+		return true
+	}
+	if path == "/api/v1/auth/register" && method == http.MethodPost {
+		return true
+	}
+	if path == "/api/v1/catalog/agents" && method == http.MethodGet {
+		return true
+	}
+	return false
 }
 
 func authWith(r *http.Request, workspaceID string) *http.Request {

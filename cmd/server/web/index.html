@@ -3,74 +3,11 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>AgentPark — 备份 / 恢复 / 分享</title>
+  <title>AgentPark</title>
   <link rel="stylesheet" href="/styles.css" />
 </head>
 <body>
-  <header>
-    <h1>AgentPark</h1>
-    <p class="sub">OpenClaw / Hermes 等 Agent 可同步到此服务；支持备份、恢复与只读分享链接。</p>
-  </header>
-
-  <main>
-    <section class="card compact">
-      <h2>API Key（可选）</h2>
-      <p class="hint">服务端若设置 <code>AGENTPARK_API_KEY</code>，浏览器需填写相同密钥才能调用 <code>/api/*</code>。</p>
-      <label class="inline">密钥 <input type="password" id="apiKey" placeholder="留空则本地开发模式" autocomplete="off" /></label>
-      <button type="button" id="btnSaveKey">保存到本页会话</button>
-    </section>
-
-    <section class="card">
-      <h2>新建 Agent</h2>
-      <form id="form">
-        <label>名称 <input name="name" required placeholder="例如：客服机器人" /></label>
-        <label>来源 <select name="origin">
-          <option value="generic">generic</option>
-          <option value="openclaw">openclaw</option>
-          <option value="hermes">hermes</option>
-        </select></label>
-        <label>系统提示 <textarea name="system" rows="3" placeholder="SOUL / 角色说明"></textarea></label>
-        <label>外部 ID（同步幂等）<input name="external_id" placeholder="插件侧稳定 ID，可空" /></label>
-        <button type="submit">添加</button>
-      </form>
-    </section>
-
-    <section class="card">
-      <h2>当前 Agents</h2>
-      <ul id="list"></ul>
-    </section>
-
-    <section class="card">
-      <h2>从分享导入</h2>
-      <p class="hint">将他人给你的 <code>share_token</code> 或完整分享 URL 粘贴在下方，会复制到你当前 workspace。</p>
-      <div class="row">
-        <input type="text" id="forkInput" placeholder="token 或 .../api/v1/public/shares/xxx" />
-        <button type="button" id="btnFork">导入副本</button>
-      </div>
-    </section>
-
-    <section class="card actions">
-      <h2>备份 / 恢复</h2>
-      <p class="hint">备份为 workspace 级 JSON；恢复会<strong>覆盖</strong>当前空间内全部 Agent。</p>
-      <div class="row">
-        <button type="button" id="btnBackup">导出备份（下载 JSON）</button>
-        <label class="file">
-          <input type="file" id="fileRestore" accept="application/json,.json" />
-          <span>从文件恢复</span>
-        </label>
-      </div>
-      <div class="row">
-        <textarea id="paste" rows="6" placeholder="或粘贴备份 JSON 后点击恢复"></textarea>
-        <button type="button" id="btnPasteRestore">从剪贴区恢复</button>
-      </div>
-      <pre id="log"></pre>
-    </section>
-  </main>
-
-  <footer>
-    <code>PUT /api/v1/sync/agents</code> · <code>GET /api/v1/public/shares/{token}</code> · <code>POST /api/v1/agents/fork</code>
-  </footer>
-
+  <div id="app"></div>
   <script src="/app.js"></script>
 </body>
 </html>

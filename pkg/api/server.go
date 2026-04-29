@@ -27,6 +27,57 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 	_ = json.NewEncoder(w).Encode(v)
 }
 
+// Register 无密码注册：仅返回随机 api_key 与 workspace_id。
+func (s *Server) Register(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	apiKey, workspaceID := s.Hub.RegisterNewUser()
+	writeJSON(w, http.StatusCreated, map[string]any{
+		"api_key":       apiKey,
+		"workspace_id": workspaceID,
+		"hint":          "api_key 以 user- 开头；Agent 主键 id 以 agent- 开头。请立即保存 api_key；当前为内存存储，进程重启后密钥与数据会丢失。",
+	})
+}
+
+func (s *Server) CatalogList(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	writeJSON(w, http.StatusOK, s.Hub.ListAgents(store.CatalogWorkspaceID))
+}
+
+func (s *Server) PublicCatalogAgent(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	id := r.PathValue("id")
+	a, err := s.Hub.GetAgent(store.CatalogWorkspaceID, id)
+	if err != nil {
+		http.Error(w, "not found", http.StatusNotFound)
+		return
+	}
+	a.WorkspaceID = ""
+	writeJSON(w, http.StatusOK, a)
+}
+
+func (s *Server) InstallCatalogAgent(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	id := r.PathValue("id")
+	a, err := s.Hub.CloneFromCatalog(s.ws(r), id)
+	if err != nil {
+		http.Error(w, "not found", http.StatusNotFound)
+		return
+	}
+	writeJSON(w, http.StatusCreated, a)
+}
+
 // --- v1 ---
 
 func (s *Server) ListV1(w http.ResponseWriter, r *http.Request) {

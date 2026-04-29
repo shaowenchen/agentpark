@@ -20,6 +20,7 @@ var webFS embed.FS
 func main() {
 	hub := store.NewHub()
 	loadAPIKeys(hub)
+	hub.SeedCatalog()
 
 	_ = hub.CreateAgent("default", model.Agent{
 		Name:   "Demo 助手",
@@ -44,6 +45,11 @@ func main() {
 	mux.HandleFunc("POST /api/v1/restore", srv.RestoreV1)
 	mux.HandleFunc("DELETE /api/v1/shares/{token}", srv.RevokeShareV1)
 	mux.HandleFunc("GET /api/v1/public/shares/{token}", srv.PublicShareV1)
+	mux.HandleFunc("GET /api/v1/public/catalog/agents/{id}", srv.PublicCatalogAgent)
+
+	mux.HandleFunc("POST /api/v1/auth/register", srv.Register)
+	mux.HandleFunc("GET /api/v1/catalog/agents", srv.CatalogList)
+	mux.HandleFunc("POST /api/v1/catalog/agents/{id}/install", srv.InstallCatalogAgent)
 
 	mux.HandleFunc("GET /api/agents", srv.LegacyList)
 	mux.HandleFunc("POST /api/agents", srv.LegacyCreate)
@@ -62,8 +68,13 @@ func main() {
 		addr = ":" + strings.TrimPrefix(p, ":")
 	}
 
-	handler := auth.Middleware(hub)(mux)
-	log.Printf("AgentPark: http://127.0.0.1%s (set AGENTPARK_API_KEY to require auth on /api/*)", addr)
+	envStrict := strings.TrimSpace(os.Getenv("AGENTPARK_API_KEY")) != ""
+	handler := auth.Middleware(hub, envStrict)(mux)
+	if envStrict {
+		log.Printf("AgentPark: http://127.0.0.1%s (strict: AGENTPARK_API_KEY required for /api/*)", addr)
+	} else {
+		log.Printf("AgentPark: http://127.0.0.1%s (匿名 default workspace；POST /api/v1/auth/register 获取独立密钥)", addr)
+	}
 	log.Fatal(http.ListenAndServe(addr, logRequests(handler)))
 }
 
