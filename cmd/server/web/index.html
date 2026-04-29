@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>AgentPark — 备份 / 恢复 Demo</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <header>
+    <h1>AgentPark</h1>
+    <p class="sub">前后端分离、同进程部署 — Agent 配置备份与恢复演示</p>
+  </header>
+
+  <main>
+    <section class="card">
+      <h2>新建 Agent</h2>
+      <form id="form">
+        <label>名称 <input name="name" required placeholder="例如：客服机器人" /></label>
+        <label>系统提示 <textarea name="system" rows="3" placeholder="角色与行为说明"></textarea></label>
+        <button type="submit">添加</button>
+      </form>
+    </section>
+
+    <section class="card">
+      <h2>当前 Agents</h2>
+      <ul id="list"></ul>
+    </section>
+
+    <section class="card actions">
+      <h2>备份 / 恢复</h2>
+      <p class="hint">备份为 JSON，可下载保存；恢复会<strong>覆盖</strong>当前内存中的全部数据。</p>
+      <div class="row">
+        <button type="button" id="btnBackup">导出备份（下载 JSON）</button>
+        <label class="file">
+          <input type="file" id="fileRestore" accept="application/json,.json" />
+          <span>从文件恢复</span>
+        </label>
+      </div>
+      <div class="row">
+        <textarea id="paste" rows="6" placeholder="或粘贴备份 JSON 后点击恢复"></textarea>
+        <button type="button" id="btnPasteRestore">从剪贴区恢复</button>
+      </div>
+      <pre id="log"></pre>
+    </section>
+  </main>
+
+  <footer>
+    <code>GET /api/backup</code> · <code>POST /api/restore</code>
+  </footer>
+
+  <script src="/app.js"></script>
+</body>
+</html>
