@@ -50,6 +50,9 @@ func isPublicAPI(method, path string) bool {
 	if path == "/api/v1/catalog/agents" && method == http.MethodGet {
 		return true
 	}
+	if path == "/api/v1/health" && method == http.MethodGet {
+		return true
+	}
 	return false
 }
 

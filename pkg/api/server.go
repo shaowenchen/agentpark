@@ -9,12 +9,15 @@ import (
 
 	"github.com/agentpark/agentpark/pkg/auth"
 	"github.com/agentpark/agentpark/pkg/model"
+	"github.com/agentpark/agentpark/pkg/objectstore"
 	"github.com/agentpark/agentpark/pkg/store"
 )
 
 // Server HTTP API（v1 + 少量 legacy 路径）。
 type Server struct {
 	Hub *store.Hub
+	// AgentArchives 仅存放 Agent 相关压缩包（zip/tar 等）；元数据仍在 Hub/MySQL。
+	AgentArchives objectstore.BlobStore
 }
 
 func (s *Server) ws(r *http.Request) string {
@@ -27,6 +30,30 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 	_ = json.NewEncoder(w).Encode(v)
 }
 
+// Health 存活探针（负载均衡 / K8s）。
+func (s *Server) Health(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"ok":      true,
+		"service": "agentpark",
+	})
+}
+
+// Me 返回当前请求上下文解析出的 workspace（供前端展示）。
+func (s *Server) Me(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	ws := s.ws(r)
+	writeJSON(w, http.StatusOK, map[string]string{
+		"workspace_id": ws,
+	})
+}
+
 // Register 无密码注册：仅返回随机 api_key 与 workspace_id。
 func (s *Server) Register(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
@@ -37,7 +64,7 @@ func (s *Server) Register(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusCreated, map[string]any{
 		"api_key":       apiKey,
 		"workspace_id": workspaceID,
-		"hint":          "api_key 以 user- 开头；Agent 主键 id 以 agent- 开头。请立即保存 api_key；当前为内存存储，进程重启后密钥与数据会丢失。",
+		"hint":          "api_key 以 user- 开头；Agent 主键 id 以 agent- 开头。请立即保存 api_key。业务数据：AGENTPARK_DATASTORE=memory|mysql（mysql 需 AGENTPARK_MYSQL_DSN）；快照：AGENTPARK_STORE=jsonfile|memory；Agent 压缩包对象存储：AGENTPARK_BLOB_STORE=s3（见 AGENTPARK_S3_*，仅用 objectstore.AgentPackageObjectKey 路径）。",
 	})
 }
 
