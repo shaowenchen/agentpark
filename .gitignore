@@ -34,5 +34,8 @@ tmp/
 temp/
 *.log
 
+# 使用 go mod download 构建镜像；勿提交 vendor 以免与 go.mod 漂移导致 CI 失败
+/vendor/
+
 # Runtime state (AGENTPARK_DATA 落盘)
 /data/

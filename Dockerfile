@@ -3,10 +3,9 @@
 FROM golang:1.24-alpine AS builder
 WORKDIR /src
 
-ENV GOFLAGS=-mod=vendor
+COPY go.mod go.sum ./
+RUN go mod download
 
-COPY go.mod ./
-COPY vendor ./vendor
 COPY cmd ./cmd
 COPY pkg ./pkg
 
